@@ -2333,18 +2333,34 @@ footer .footer-brand img {
     .nav-menu { display: none; }
     .hamburger { display: flex; }
     .section { padding: 55px 5%; }
-    .service-category__track {
-        --service-visible: 1;
-        --service-gap: 0;
-        scroll-padding-inline: 0;
-    }
+    .service-category__track,
     .service-category--carousel .service-category__track {
+        display: flex;
+        grid-auto-flow: initial;
+        grid-auto-columns: initial;
+        gap: 16px;
         overflow-x: auto;
-        scrollbar-width: thin;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 0;
+        padding-bottom: 14px;
+        scrollbar-width: none;
+    }
+    .service-category__track::-webkit-scrollbar {
+        display: none;
     }
     .service-offer-card {
+        flex: 0 0 86%;
+        width: 86%;
+        max-width: 360px;
+        min-height: auto;
         scroll-snap-align: center;
         scroll-snap-stop: always;
+    }
+    .service-offer-card__media {
+        aspect-ratio: 16 / 9;
+    }
+    .service-offer-card__body {
+        padding: 20px 20px 22px;
     }
     .services-grid { grid-template-columns: 1fr 1fr; }
     .industries-grid { grid-template-columns: 1fr 1fr; }
