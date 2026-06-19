@@ -305,7 +305,7 @@ const lbHtml = lbData
 
 body = body.slice(0, lbStartIdx) + lbHtml + "\n\n" + body.slice(lbEndIdx);
 
-const clientsLogoDir = path.join(ROOT, "images", "clients-logo");
+const clientsLogoDir = path.join(__dirname, "images", "clients-logo");
 const clientLogoFiles = fs.existsSync(clientsLogoDir)
   ? fs
       .readdirSync(clientsLogoDir)
