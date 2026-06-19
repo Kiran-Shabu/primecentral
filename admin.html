@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Careers Admin | Prime Central</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="admin-wrap">
+        <header class="admin-header">
+            <div>
+                <h1>Careers Admin</h1>
+                <p>Manage job openings shown on the website</p>
+            </div>
+            <a href="/" class="admin-link-site">View website</a>
+        </header>
+
+        <section id="login-view" class="admin-card">
+            <h2>Sign in</h2>
+            <form id="login-form">
+                <label for="password">Admin password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <button type="submit" class="btn btn-primary">Sign in</button>
+            </form>
+            <p id="login-error" class="admin-error" hidden></p>
+        </section>
+
+        <section id="dashboard-view" hidden>
+            <div class="admin-toolbar">
+                <button type="button" class="btn btn-primary" id="btn-add-job">+ Add opening</button>
+                <button type="button" class="btn btn-ghost" id="btn-logout">Sign out</button>
+            </div>
+            <div id="jobs-admin-list" class="jobs-admin-list"></div>
+        </section>
+
+        <dialog id="job-dialog" class="job-dialog">
+            <form id="job-form" method="dialog">
+                <h2 id="dialog-title">Add job opening</h2>
+                <input type="hidden" id="job-id-field" name="id">
+                <div class="form-grid">
+                    <div class="form-field form-field--full">
+                        <label for="job-title">Job title *</label>
+                        <input type="text" id="job-title" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="job-department">Department</label>
+                        <input type="text" id="job-department" placeholder="Operations">
+                    </div>
+                    <div class="form-field">
+                        <label for="job-location">Location</label>
+                        <input type="text" id="job-location" value="Abu Dhabi, UAE">
+                    </div>
+                    <div class="form-field">
+                        <label for="job-type">Employment type</label>
+                        <select id="job-type">
+                            <option>Full-time</option>
+                            <option>Part-time</option>
+                            <option>Contract</option>
+                            <option>Internship</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="job-posted">Posted date</label>
+                        <input type="date" id="job-posted">
+                    </div>
+                    <div class="form-field form-field--full">
+                        <label for="job-summary">Short summary</label>
+                        <input type="text" id="job-summary" placeholder="One line shown on the card">
+                    </div>
+                    <div class="form-field form-field--full">
+                        <label for="job-description">Description</label>
+                        <textarea id="job-description" rows="4"></textarea>
+                    </div>
+                    <div class="form-field form-field--full">
+                        <label for="job-requirements">Requirements (one per line)</label>
+                        <textarea id="job-requirements" rows="4" placeholder="3+ years experience&#10;UAE driving licence"></textarea>
+                    </div>
+                    <div class="form-field form-field--check">
+                        <label><input type="checkbox" id="job-published" checked> Published (visible on site)</label>
+                    </div>
+                </div>
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-ghost" id="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </dialog>
+
+        <p id="toast" class="admin-toast" hidden></p>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html>

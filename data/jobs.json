@@ -1,0 +1,36 @@
+{
+  "jobs": [
+    {
+      "id": "hvac-technician-001",
+      "title": "HVAC Technician",
+      "department": "Operations",
+      "location": "Abu Dhabi, UAE",
+      "type": "Full-time",
+      "summary": "Install, maintain and repair air conditioning systems for commercial and residential clients across the UAE.",
+      "description": "We are looking for an experienced HVAC Technician to join our field operations team. You will work on installation, preventive maintenance, and breakdown repairs for split units, ducted systems, and chilled water plants.",
+      "requirements": [
+        "Minimum 3 years HVAC experience in the UAE or GCC",
+        "Valid UAE driving licence",
+        "ITI / diploma in HVAC or equivalent trade certification"
+      ],
+      "published": true,
+      "postedAt": "2026-05-01"
+    },
+    {
+      "id": "project-engineer-001",
+      "title": "MEP Project Engineer",
+      "department": "Projects",
+      "location": "Abu Dhabi, UAE",
+      "type": "Full-time",
+      "summary": "Support project planning, site coordination and technical documentation for electro-mechanical contracts.",
+      "description": "The Project Engineer will assist the Project Manager with BOQs, shop drawings review, site progress reporting, and coordination with clients, consultants and subcontractors.",
+      "requirements": [
+        "Bachelor's degree in Mechanical or Electrical Engineering",
+        "2+ years MEP project experience",
+        "Strong communication and MS Office skills"
+      ],
+      "published": true,
+      "postedAt": "2026-05-10"
+    }
+  ]
+}

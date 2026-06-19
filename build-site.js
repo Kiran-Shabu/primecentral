@@ -8,6 +8,27 @@ const path = require("path");
 const SRC = path.join(__dirname, "prime_central_website (9) (1).html");
 const OUT_HTML = path.join(__dirname, "index.html");
 const OUT_CSS = path.join(__dirname, "prime-central.css");
+const IMAGES_DIR = path.join(__dirname, "images");
+const LOGO_SRC = "images/prime-logo.png";
+const DIRECTOR_SRC = "images/director.png";
+
+const ABOUT_EXTRA_HTML = fs.readFileSync(path.join(__dirname, "partials", "about-blocks.html"), "utf8").replace(
+  /images\/director\.png/g,
+  DIRECTOR_SRC
+);
+
+const CAREERS_EXTRA_HTML = fs.readFileSync(
+  path.join(__dirname, "partials", "careers-section.html"),
+  "utf8"
+);
+
+const GALLERY = [
+  { file: "images/gallery-1.jpg", cap: "Electrical Panel Works" },
+  { file: "images/gallery-2.jpg", cap: "MEP Duct Installation" },
+  { file: "images/gallery-3.jpg", cap: "Chiller Unit Inspection" },
+  { file: "images/gallery-4.jpg", cap: "AC Unit Servicing" },
+  { file: "images/gallery-5.jpg", cap: "Rooftop HVAC Systems" },
+];
 
 const raw = fs.readFileSync(SRC, "utf8");
 
@@ -190,15 +211,32 @@ a.mobile-close {
     text-decoration: none;
     color: inherit;
 }
+
+${fs.readFileSync(path.join(__dirname, "styles", "about-feature.css"), "utf8")}
+
+/* --- Justified body copy --- */
+.hero-desc, .section-sub, .about-grid > .fade-in:first-child p,
+.director-lead, .director-message-more p, .feature-card p,
+.service-offer-card__desc,
+.service-desc, .careers-aside__lead, .careers-aside__note, .careers-job__summary, .careers-job__desc,
+.careers-job__reqs li, .mv-card p, .footer-brand p {
+    text-align: justify; text-justify: inter-word; hyphens: auto; -webkit-hyphens: auto; text-wrap: pretty;
+}
+.about-quote, .director-sign, .hero-form-sub, .director-showcase__caption,
+.careers-openings__title, .careers-openings__sub, .careers-empty__title, .careers-empty__text,
+.careers-job__reqs-title, .kpi-label, .stat-label, .process-name, .industry-card__title, .service-name {
+    text-align: left;
+}
 `;
 
 fs.writeFileSync(OUT_CSS, `/* Prime Central — stylesheet split from legacy markup */\n${css}`, "utf8");
 
-/* --- Parse lightbox data from script --- */
+/* --- Legacy base64 URLs (for one-time replacement in body) --- */
 const lbStart = raw.indexOf("const lbData = [");
 const lbEnd = raw.indexOf("];", lbStart) + 2;
 const lbText = raw.slice(lbStart + "const lbData = ".length, lbEnd);
-const lbData = new Function("return " + lbText)();
+const legacyLbData = new Function("return " + lbText)();
+const lbData = GALLERY.map((g) => ({ src: g.file, cap: g.cap }));
 
 /* --- Body --- */
 let body = raw.slice(raw.indexOf("<body>"), raw.indexOf("<script>"));
@@ -231,13 +269,7 @@ for (let i = 0; i < lbData.length; i++) {
   );
 }
 
-const capCloses = [
-  "Electrical Panel Works",
-  "MEP Duct Installation",
-  "Chiller Unit Inspection",
-  "AC Unit Servicing",
-  "Rooftop HVAC Systems",
-];
+const capCloses = GALLERY.map((g) => g.cap);
 for (const cap of capCloses) {
   body = body.replace(
     `<div class="gal-overlay"><span>${cap}</span></div>\n        </div>`,
@@ -273,31 +305,33 @@ const lbHtml = lbData
 
 body = body.slice(0, lbStartIdx) + lbHtml + "\n\n" + body.slice(lbEndIdx);
 
-const clientsChips = [];
-const clients = [
-  ["ADNOC", "Drilling", "#003366"],
-  ["EPF", "Emirates Printing Forms", "#006633"],
-  ["Bin Hamoodah", "Properties LLC", "#8B0000"],
-  ["Oceaneering", "International", "#003399"],
-  ["NOV", "Tuboscope", "#CC0000"],
-  ["Safeen", "Group", "#004080"],
-  ["Afhad", "Group", "#333333"],
-  ["Emirates Palace", "Abu Dhabi", "#8B6914"],
-  ["Al Rafa", "Group", "#006600"],
-  ["Gazebo", "UAE", "#660066"],
-];
-const doubled = [...clients, ...clients];
-for (const [name, sub, bg] of doubled) {
-  clientsChips.push(`            <div class="client-chip">
-                <div class="client-logo-text" style="background:${bg};color:#fff;">
-                    <strong>${escapeHtml(name)}</strong><span>${escapeHtml(sub)}</span>
-                </div>
-            </div>`);
+const clientsLogoDir = path.join(ROOT, "images", "clients-logo");
+const clientLogoFiles = fs.existsSync(clientsLogoDir)
+  ? fs
+      .readdirSync(clientsLogoDir)
+      .filter((f) => /\.(jpg|jpeg|png|webp|svg)$/i.test(f))
+      .sort()
+  : [];
+function clientLogoAlt(filename) {
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+const clientsChips = [];
+const doubledLogos = [...clientLogoFiles, ...clientLogoFiles];
+doubledLogos.forEach((file, i) => {
+  const hidden = i >= clientLogoFiles.length;
+  const alt = hidden ? "" : escapeHtml(clientLogoAlt(file));
+  const aria = hidden ? ' aria-hidden="true"' : "";
+  clientsChips.push(
+    `            <div class="client-chip"${aria}><div class="client-logo"><img src="images/clients-logo/${escapeHtml(file)}" alt="${alt}" loading="lazy"></div></div>`
+  );
+});
 const clientsHtml = `        <div class="clients-track" id="clientsTrack">\n${clientsChips.join("\n")}\n        </div>`;
 body = body.replace(
-  /<div class="clients-track" id="clientsTrack"><\/div>/,
-  clientsHtml
+  /<div class="clients-track" id="clientsTrack">[\s\S]*?<\/div>/,
+  clientsHtml.trim()
 );
 
 body = body.replace(/\s*onclick="heroSubmit\(event\)"/, "");
@@ -314,6 +348,30 @@ body = body.replace(
   /<!-- ==============================\s*\n\s*HERO SECTION/,
   "<main class=\"site-main\" id=\"main-content\">\n<!-- ==============================\n     HERO SECTION"
 );
+
+if (!body.includes("director-showcase")) {
+  body = body.replace(
+    /(\s*<\/div>\s*<\/div>\s*<\/div>\s*\n<\/section>\s*\n\s*<!-- ==============================\s*\n\s*SERVICES SECTION)/,
+    ABOUT_EXTRA_HTML + "\n    </div>\n</section>\n\n<!-- ==============================\n     SERVICES SECTION"
+  );
+}
+
+body = body.replace(
+  /<li><a href="#certifications">Certifications<\/a><\/li>\s*\n\s*<li><a href="#contact"/g,
+  '<li><a href="#certifications">Certifications</a></li>\n            <li><a href="#careers">Careers</a></li>\n            <li><a href="#contact"'
+);
+body = body.replace(
+  /<a href="#certifications">Certifications<\/a>\s*\n\s*<a href="#contact">Contact Us<\/a>/g,
+  '<a href="#certifications">Certifications</a>\n        <a href="#careers">Careers</a>\n        <a href="#contact">Contact Us</a>'
+);
+
+if (!body.includes('id="careers"')) {
+  body = body.replace(
+    /<!-- ==============================\s*\n\s*CONTACT SECTION/,
+    CAREERS_EXTRA_HTML + "<!-- ==============================\n     CONTACT SECTION"
+  );
+}
+
 body = body.replace(
   /\n\s*<!-- ==============================\s*\n\s*FOOTER/,
   "\n\n</main>\n\n<!-- ==============================\n     FOOTER"
@@ -334,7 +392,25 @@ const head = `<!DOCTYPE html>
 
 body = body.replace("<body>", "<body>\n    <span id=\"page-top\" class=\"skip-target\" aria-hidden=\"true\"></span>");
 
-const out = head + body + "\n</html>\n";
+body = replaceEmbeddedImages(body, raw, legacyLbData);
+
+let out = head + body;
+if (!out.includes("careers.js")) {
+  out = out.replace("</html>", '<script src="js/careers.js"></script>\n</html>');
+}
+if (!out.includes("about-sections.js")) {
+  out = out.replace(
+    '<script src="js/careers.js"></script>',
+    '<script src="js/careers.js"></script>\n<script src="js/about-sections.js"></script>'
+  );
+}
+if (!out.includes("services-carousel.js")) {
+  out = out.replace(
+    '<script src="js/about-sections.js"></script>',
+    '<script src="js/about-sections.js"></script>\n<script src="js/services-carousel.js"></script>'
+  );
+}
+out += "\n";
 fs.writeFileSync(OUT_HTML, out, "utf8");
 
 console.log("Wrote", OUT_HTML);
@@ -349,4 +425,17 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) {
   return escapeHtml(s).replace(/\n/g, " ");
+}
+
+/** Swap embedded data: URLs in body for files under images/ */
+function replaceEmbeddedImages(html, source, legacyGallery) {
+  const logoMatch = source.match(/<nav[\s\S]*?<img src="(data:image\/[^"]+)"/);
+  if (logoMatch) {
+    html = html.split(logoMatch[1]).join(LOGO_SRC);
+  }
+  legacyGallery.forEach((item, i) => {
+    const file = GALLERY[i]?.file;
+    if (file && item.src) html = html.split(item.src).join(file);
+  });
+  return html;
 }

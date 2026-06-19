@@ -1,0 +1,65 @@
+/* About: Director's Message & People / Infrastructure — appended by build-site.js */
+.about-blocks { margin-top: 64px; display: flex; flex-direction: column; gap: 72px; }
+.about-feature__header { margin-bottom: 32px; }
+.about-feature__header .section-sub { max-width: 640px; }
+.director-showcase {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    gap: 0;
+    align-items: stretch;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+.director-showcase__portrait { margin: 0; background: linear-gradient(180deg, var(--teal-light) 0%, #fff 100%); border-right: 1px solid var(--border); }
+.director-showcase__portrait img { display: block; width: 100%; min-height: 420px; max-height: 520px; object-fit: cover; object-position: center top; }
+.director-showcase__caption { padding: 18px 22px 22px; text-align: center; border-top: 1px solid var(--border); background: #fff; }
+.director-showcase__name { display: block; font-family: var(--heading); font-size: 16px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+.director-showcase__role { display: block; font-family: var(--heading); font-size: 12px; font-weight: 600; color: var(--text-grey); text-transform: uppercase; letter-spacing: 1.2px; }
+.director-showcase__content { position: relative; padding: 36px 36px 32px 28px; }
+.director-showcase__content:not(.is-message-expanded)::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 88px; height: 64px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 85%); pointer-events: none;
+}
+.director-showcase__content.is-message-expanded::after { opacity: 0; }
+.director-lead { font-size: 16px; color: var(--text); line-height: 1.9; margin: 0 0 18px; font-weight: 600; }
+.director-message-more { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.45s ease, opacity 0.35s ease, margin 0.35s ease; }
+.director-message-more.is-expanded { max-height: 1200px; opacity: 1; margin-bottom: 8px; }
+.director-message-more p { font-size: 15px; color: var(--text-mid); line-height: 1.9; margin: 0 0 16px; }
+.btn-read-more {
+    display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 20px; padding: 0; border: none; background: none;
+    font-family: var(--heading); font-size: 13px; font-weight: 700; color: var(--teal); text-transform: uppercase;
+    letter-spacing: 1.2px; cursor: pointer;
+}
+.btn-read-more::after { content: "→"; transition: transform 0.2s ease; }
+.btn-read-more:hover { color: var(--red); }
+.btn-read-more[aria-expanded="true"]::after { transform: rotate(90deg); }
+.director-sign { padding-top: 20px; border-top: 1px solid var(--border); }
+.director-sign__name { display: block; font-family: var(--heading); font-size: 15px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+.director-sign__company { display: block; font-family: var(--heading); font-size: 13px; font-weight: 600; color: var(--red); }
+.people-infra-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.feature-card {
+    background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--teal);
+    border-radius: 14px; padding: 28px 26px 30px; box-shadow: var(--shadow); transition: var(--transition);
+}
+.feature-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-left-color: var(--red); }
+.feature-card:nth-child(2n) { border-left-color: var(--red); }
+.feature-card:nth-child(2n):hover { border-left-color: var(--teal); }
+.feature-card__icon {
+    width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; background: var(--teal-light); border-radius: 12px; margin-bottom: 18px;
+}
+.feature-card:nth-child(2n) .feature-card__icon { background: var(--red-light); }
+.feature-card__title { font-family: var(--heading); font-size: 18px; font-weight: 700; color: var(--text); margin: 0 0 14px; }
+.feature-card p { font-size: 15px; color: var(--text-mid); line-height: 1.9; margin: 0; }
+@media (max-width: 1024px) {
+    .director-showcase { grid-template-columns: 1fr; }
+    .director-showcase__portrait { border-right: none; border-bottom: 1px solid var(--border); }
+}
+@media (max-width: 768px) {
+    .director-showcase__content { padding: 24px 20px 22px; }
+    .director-showcase__portrait img { min-height: 320px; max-height: 400px; }
+    .people-infra-grid { grid-template-columns: 1fr; }
+}
