@@ -1,0 +1,53 @@
+# Render Blueprint for the Prime Central website.
+# Deploy: push to GitHub, then in Render choose "New +" -> "Blueprint" and
+# point it at this repository. Render reads this file and provisions the
+# service, persistent disk, and environment variables automatically.
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: primecentral
+    runtime: node
+    # Frankfurt is Render's closest region to the UAE (lowest latency).
+    region: frankfurt
+    # "starter" is an always-on paid instance (no cold-start sleep) and is
+    # required to attach a persistent disk. Use "free" only for testing.
+    plan: starter
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    # Root serves the static index.html and returns 200 for health checks.
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Store careers data on the persistent disk so admin edits survive
+      # restarts and deploys. Matches the disk mountPath below.
+      - key: JOBS_FILE
+        value: /data/jobs.json
+      # Set the real password in the Render dashboard (kept out of git).
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Email settings for the Contact / Request-a-Quote forms.
+      # Set the secret values (SMTP_USER, SMTP_PASS, MAIL_TO) in the Render
+      # dashboard. For Gmail, SMTP_PASS must be an App Password.
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_TO
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

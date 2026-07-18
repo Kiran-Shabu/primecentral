@@ -8,6 +8,7 @@
     "generate": "node build-site.js"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "nodemailer": "^9.0.3"
   }
 }

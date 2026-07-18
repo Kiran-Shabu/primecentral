@@ -29,6 +29,7 @@ Official marketing website for **Prime Central Air Conditioning Co. L.L.C** (Abu
 - Image assets in `images/` (no huge embedded base64 in `index.html`)
 - **Careers** section with live job listings from `data/jobs.json`
 - **Admin panel** (`admin.html`) to add, edit, delete, and publish/unpublish openings
+- **Contact** and **Request a Quote** forms that email enquiries to your inbox (via SMTP)
 - CSS-only mobile menu and gallery lightbox (no JavaScript required for navigation/gallery)
 - Optional build script to regenerate `index.html` from legacy source file
 
@@ -240,6 +241,18 @@ Returns published jobs only, sorted by `postedAt` (newest first).
 }
 ```
 
+#### `POST /api/quote`
+
+Hero "Request a Free Quote" form. Emails the enquiry to `MAIL_TO`.
+Body: `{ "name", "email", "phone", "service" }` → `{ "ok": true }`.
+
+#### `POST /api/contact`
+
+Contact section "Send Enquiry" form. Emails the enquiry to `MAIL_TO`.
+Body: `{ "name", "company", "email", "phone", "service", "message" }` → `{ "ok": true }`.
+
+> Both endpoints require SMTP env vars to be configured (see [Email setup](#email-contact--quote-forms)). Without them the forms return a clear "email not configured" error.
+
 ### Admin (requires `Authorization: Bearer <token>`)
 
 | Method | Endpoint | Description |
@@ -349,7 +362,23 @@ The site needs **both** static files and the **Node server** for Careers and adm
 5. Put **Nginx** or **Caddy** in front as reverse proxy on port 80/443
 6. Enable HTTPS (Let's Encrypt)
 
-### Option B: Static hosting only
+### Option B: Render (recommended, managed) — via `render.yaml`
+
+The repo includes a **`render.yaml` Blueprint** that provisions everything automatically.
+
+1. Push the repo to GitHub.
+2. In Render, click **New +** → **Blueprint**, and select this repository.
+3. Render reads `render.yaml` and creates:
+   - a **Node web service** (`npm install` → `npm start`)
+   - a **1 GB persistent disk** mounted at `/data`
+   - env vars `NODE_ENV=production` and `JOBS_FILE=/data/jobs.json`
+4. When prompted, set **`ADMIN_PASSWORD`** to a strong value (it is intentionally not stored in git).
+5. Deploy. On first boot the server **seeds** `/data/jobs.json` from the repo's `data/jobs.json`, and all future admin edits persist across restarts/deploys.
+6. Add the **custom domain** under the service's **Settings → Custom Domains** and point the registrar's DNS to Render (SSL is automatic).
+
+> The `plan: starter` line keeps the service **always-on** (no cold starts). Use `free` only for temporary previews. A persistent disk requires a paid plan.
+
+### Option C: Static hosting only
 
 If you host on pure static hosting (GitHub Pages, S3, etc.):
 
@@ -361,8 +390,47 @@ If you host on pure static hosting (GitHub Pages, S3, etc.):
 
 | Variable | Description |
 |----------|-------------|
-| `PORT` | Server port (default: `3000`) |
+| `PORT` | Server port (Render sets this automatically; local default `3000`) |
 | `ADMIN_PASSWORD` | Password for admin login (**required** in production) |
+| `JOBS_FILE` | Path to the jobs data store. Set to a persistent-disk path (e.g. `/data/jobs.json`) in production so admin edits survive restarts. Falls back to `data/jobs.json` if unset. |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | SMTP server for sending enquiry emails |
+| `SMTP_USER` / `SMTP_PASS` | SMTP credentials (for Gmail, use an App Password) |
+| `MAIL_TO` | Inbox that receives enquiries (defaults to `SMTP_USER`) |
+| `MAIL_FROM` | Visible "from" address (defaults to `SMTP_USER`) |
+
+---
+
+## Email (Contact & Quote forms)
+
+The **Contact** form and the hero **Request a Free Quote** form submit to the
+server, which emails the enquiry to your inbox (`MAIL_TO`). Replies go straight
+to the visitor because their address is set as the email's `Reply-To`.
+
+### Setup (Gmail example)
+
+1. Use a Google account with **2-Step Verification** enabled.
+2. Create an **App Password**: Google Account → Security → App passwords. You
+   get a 16-character value.
+3. Set the environment variables (locally in `.env`, in production in the
+   Render dashboard / `render.yaml`):
+
+   ```bash
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_SECURE=true
+   SMTP_USER=your-gmail-address@gmail.com
+   SMTP_PASS=your-16-char-app-password
+   MAIL_TO=where-you-want-enquiries@example.com
+   MAIL_FROM=your-gmail-address@gmail.com
+   ```
+
+4. Restart the server. On start it logs whether email is **enabled** or
+   **disabled**.
+
+Any SMTP provider works (Zoho, Outlook/Microsoft 365, SendGrid, Mailgun, your
+host's SMTP) — just use their host/port/credentials. If SMTP is not configured,
+the forms show a friendly "email not configured" message instead of failing
+silently. A hidden honeypot field is included to reduce spam.
 
 ---
 

@@ -7,9 +7,11 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
+const nodemailer = require("nodemailer");
 
 const ROOT = __dirname;
-const JOBS_FILE = path.join(ROOT, "data", "jobs.json");
+// Job data bundled with the repo; used to seed the live store on first boot.
+const SEED_JOBS_FILE = path.join(ROOT, "data", "jobs.json");
 
 /** Load .env into process.env (file values override existing env) */
 function loadEnv() {
@@ -34,6 +36,49 @@ loadEnv();
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || "primecentral2026").trim();
 
+// Where job edits are persisted. On a host with an ephemeral filesystem
+// (e.g. Render), set JOBS_FILE to a path on a persistent disk such as
+// /data/jobs.json so admin changes survive restarts and deploys.
+const JOBS_FILE = process.env.JOBS_FILE
+  ? path.resolve(process.env.JOBS_FILE)
+  : SEED_JOBS_FILE;
+
+// ---------------------------------------------------------------------------
+// Email (contact + quote forms)
+// Configure via environment variables (set these in .env locally and in the
+// Render dashboard in production):
+//   SMTP_HOST      e.g. smtp.gmail.com
+//   SMTP_PORT      e.g. 465 (SSL) or 587 (STARTTLS)
+//   SMTP_SECURE    "true" for port 465, "false" for 587
+//   SMTP_USER      the SMTP account username (usually the sending email)
+//   SMTP_PASS      the SMTP password / app password
+//   MAIL_TO        where enquiries are delivered (your inbox)
+//   MAIL_FROM      the "from" address (defaults to SMTP_USER)
+// ---------------------------------------------------------------------------
+const MAIL = {
+  host: (process.env.SMTP_HOST || "").trim(),
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: String(process.env.SMTP_SECURE || "").trim().toLowerCase() === "true",
+  user: (process.env.SMTP_USER || "").trim(),
+  pass: (process.env.SMTP_PASS || "").trim(),
+  to: (process.env.MAIL_TO || process.env.SMTP_USER || "primecac@gmail.com").trim(),
+  from: (process.env.MAIL_FROM || process.env.SMTP_USER || "").trim(),
+};
+
+let mailTransporter = null;
+function getMailTransporter() {
+  if (!MAIL.host || !MAIL.user || !MAIL.pass) return null;
+  if (!mailTransporter) {
+    mailTransporter = nodemailer.createTransport({
+      host: MAIL.host,
+      port: MAIL.port,
+      secure: MAIL.secure,
+      auth: { user: MAIL.user, pass: MAIL.pass },
+    });
+  }
+  return mailTransporter;
+}
+
 const app = express();
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(ROOT));
@@ -47,13 +92,24 @@ function isPublished(job) {
   return true;
 }
 
-function readJobsFile() {
-  if (!fs.existsSync(JOBS_FILE)) {
-    const empty = { jobs: [] };
-    fs.mkdirSync(path.dirname(JOBS_FILE), { recursive: true });
-    writeJobsFile(empty);
-    return empty;
+/**
+ * Ensure the live jobs store exists. On first boot against an empty
+ * persistent disk, seed it from the repo's bundled data/jobs.json so the
+ * site launches with the jobs committed to git instead of an empty list.
+ */
+function ensureJobsFile() {
+  if (fs.existsSync(JOBS_FILE)) return;
+  fs.mkdirSync(path.dirname(JOBS_FILE), { recursive: true });
+  if (JOBS_FILE !== SEED_JOBS_FILE && fs.existsSync(SEED_JOBS_FILE)) {
+    fs.copyFileSync(SEED_JOBS_FILE, JOBS_FILE);
+    console.log("Seeded jobs store from", SEED_JOBS_FILE, "->", JOBS_FILE);
+  } else {
+    writeJobsFile({ jobs: [] });
   }
+}
+
+function readJobsFile() {
+  ensureJobsFile();
   const raw = fs.readFileSync(JOBS_FILE, "utf8");
   const data = JSON.parse(raw);
   if (!Array.isArray(data.jobs)) throw new Error("Invalid jobs.json");
@@ -93,6 +149,147 @@ function authMiddleware(req, res, next) {
   }
   next();
 }
+
+function cleanField(value, max) {
+  return String(value == null ? "" : value)
+    .replace(/[\r\n]+/g, " ")
+    .trim()
+    .slice(0, max || 200);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function escapeHtmlMail(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Build and send an enquiry email; returns a result object. */
+async function sendEnquiryEmail({ subject, rows, replyTo, text }) {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    return { ok: false, status: 503, error: "Email is not configured on the server yet." };
+  }
+
+  const tableRows = rows
+    .filter((r) => r.value)
+    .map(
+      (r) =>
+        `<tr><td style="padding:6px 12px;font-weight:600;color:#124e67;vertical-align:top;">${escapeHtmlMail(
+          r.label
+        )}</td><td style="padding:6px 12px;color:#1c2b35;">${escapeHtmlMail(r.value).replace(
+          /\n/g,
+          "<br>"
+        )}</td></tr>`
+    )
+    .join("");
+
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;">
+    <div style="background:#124e67;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;">
+      <h2 style="margin:0;font-size:18px;">${escapeHtmlMail(subject)}</h2>
+      <p style="margin:4px 0 0;font-size:12px;opacity:.85;">Prime Central website enquiry</p>
+    </div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #dde3e8;border-top:none;">
+      ${tableRows}
+    </table>
+    <p style="font-size:11px;color:#738fa0;margin:12px 4px;">Received ${new Date().toUTCString()}</p>
+  </div>`;
+
+  try {
+    await transporter.sendMail({
+      from: MAIL.from ? `"Prime Central Website" <${MAIL.from}>` : MAIL.user,
+      to: MAIL.to,
+      replyTo: replyTo && isValidEmail(replyTo) ? replyTo : undefined,
+      subject,
+      text,
+      html,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("sendMail error:", err.message);
+    return { ok: false, status: 502, error: "Could not send your message. Please try again later." };
+  }
+}
+
+// Hero "Request a Free Quote" form
+app.post("/api/quote", noCacheApi, async (req, res) => {
+  const body = req.body || {};
+  // Honeypot: bots fill hidden fields; humans leave them empty.
+  if (cleanField(body.company_website)) return res.json({ ok: true });
+
+  const name = cleanField(body.name, 120);
+  const email = cleanField(body.email, 160);
+  const phone = cleanField(body.phone, 60);
+  const service = cleanField(body.service, 120);
+
+  if (!name || !email || !phone) {
+    return res.status(400).json({ error: "Please provide your name, email and phone number." });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Please provide a valid email address." });
+  }
+
+  const rows = [
+    { label: "Name", value: name },
+    { label: "Email", value: email },
+    { label: "Phone", value: phone },
+    { label: "Service Required", value: service },
+  ];
+  const text = rows.filter((r) => r.value).map((r) => `${r.label}: ${r.value}`).join("\n");
+
+  const result = await sendEnquiryEmail({
+    subject: `Quote Request from ${name}`,
+    rows,
+    replyTo: email,
+    text,
+  });
+  if (!result.ok) return res.status(result.status || 500).json({ error: result.error });
+  res.json({ ok: true });
+});
+
+// Contact section "Send Enquiry" form
+app.post("/api/contact", noCacheApi, async (req, res) => {
+  const body = req.body || {};
+  if (cleanField(body.company_website)) return res.json({ ok: true });
+
+  const name = cleanField(body.name, 120);
+  const company = cleanField(body.company, 160);
+  const email = cleanField(body.email, 160);
+  const phone = cleanField(body.phone, 60);
+  const service = cleanField(body.service, 120);
+  const message = cleanField(body.message, 4000);
+
+  if (!name || !email) {
+    return res.status(400).json({ error: "Please provide your name and email." });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Please provide a valid email address." });
+  }
+
+  const rows = [
+    { label: "Name", value: name },
+    { label: "Company", value: company },
+    { label: "Email", value: email },
+    { label: "Phone", value: phone },
+    { label: "Service Required", value: service },
+    { label: "Message", value: message },
+  ];
+  const text = rows.filter((r) => r.value).map((r) => `${r.label}: ${r.value}`).join("\n");
+
+  const result = await sendEnquiryEmail({
+    subject: `Contact Enquiry from ${name}`,
+    rows,
+    replyTo: email,
+    text,
+  });
+  if (!result.ok) return res.status(result.status || 500).json({ error: result.error });
+  res.json({ ok: true });
+});
 
 app.get("/api/jobs", noCacheApi, (req, res) => {
   try {
@@ -227,10 +424,23 @@ app.delete("/api/admin/jobs/:id", authMiddleware, (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
+  try {
+    ensureJobsFile();
+  } catch (err) {
+    console.error("Could not initialise jobs store:", err.message);
+  }
   console.log(`Prime Central site: http://localhost:${PORT}`);
   console.log(`Admin panel:        http://localhost:${PORT}/admin.html`);
+  console.log(`Jobs store:         ${JOBS_FILE}`);
+  if (getMailTransporter()) {
+    console.log(`Email enquiries:    enabled -> ${MAIL.to}`);
+  } else {
+    console.log("Email enquiries:    DISABLED (set SMTP_HOST, SMTP_USER, SMTP_PASS to enable)");
+  }
   if (ADMIN_PASSWORD === "primecentral2026") {
-    console.log("Warning: using default admin password. Set ADMIN_PASSWORD in .env");
+    console.log(
+      "Warning: using default admin password. Set a strong ADMIN_PASSWORD env var before going live."
+    );
   }
 });
 
